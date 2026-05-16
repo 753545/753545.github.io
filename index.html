@@ -33,7 +33,8 @@
         /* INPUTS */
         input[type="text"] { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid var(--card-border); background: #000; color: white; font-size: 16px; outline: none; margin-bottom: 10px; }
         input[type="text"]:focus { border-color: var(--accent-orange); }
-        .btn-main { width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; background: var(--accent-purple); color: white; cursor: pointer; text-align: center; margin-bottom: 10px; }
+        .btn-main { width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; background: var(--accent-purple); color: white; cursor: pointer; text-align: center; margin-bottom: 10px; transition: 0.2s;}
+        .btn-main:active { opacity: 0.7; }
         
         /* CARD */
         .movie-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 10px; display: flex; gap: 15px; margin-bottom: 10px; }
@@ -80,23 +81,21 @@
 
     <!-- SETTINGS -->
     <div id="view-settings" class="view-page">
-        <h2 style="margin-top:0;">Settings & Data</h2>
-        <p style="font-size:14px; color:var(--text-muted);">Import your JSON backup from your computer here to train offline.</p>
+        <h2 style="margin-top:0;">Cloud Sync</h2>
+        <p style="font-size:14px; color:var(--text-muted);">Ensure you have uploaded your latest <b>database.json</b> file to your GitHub repository.</p>
         
-        <label class="btn-main" style="display:block;">
-            📂 Load Database Backup
-            <input type="file" style="display:none;" accept=".json" onchange="importData(event)">
-        </label>
+        <button class="btn-main" style="background:var(--accent-green); color:black;" onclick="syncFromCloud()">
+            ☁️ 1-Click Sync Database & Images
+        </button>
+        <div id="sync-status" style="font-size:13px; color:var(--accent-orange); text-align:center; font-weight:bold; margin-top:10px; min-height: 20px;"></div>
         
         <div style="margin: 30px 0; border-top: 1px solid #333;"></div>
         
-        <h3 style="margin-bottom: 5px;">Offline Poster Assets</h3>
-        <p style="font-size:13px; color:var(--text-muted);">Download all movie posters from your lists to your phone so they appear in Airplane mode.</p>
-        
-        <button class="btn-main" style="background:var(--accent-green); color:black;" onclick="downloadOfflineImages()">
-            📥 Download Images Now
-        </button>
-        <div id="download-status" style="font-size:12px; color:var(--accent-orange); text-align:center; font-weight:bold;"></div>
+        <div style="font-size:14px; color:var(--text-muted);">
+            <strong>Local Data Info:</strong><br>
+            Lewd List: <span id="stat-lewd">0</span> movies<br>
+            Popular List: <span id="stat-pop">0</span> movies
+        </div>
     </div>
 
     <!-- BOTTOM NAVIGATION -->
@@ -137,49 +136,63 @@
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + viewId).classList.add('active');
             btnElem.classList.add('active');
+            updateStatsUI();
         }
 
-        function importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    let data = JSON.parse(e.target.result);
-                    lewdDb = data.version === 2 ? data.list : data;
-                    greenDb = data.green || {};
-                    localStorage.setItem('lewdList_v2', JSON.stringify(lewdDb));
-                    localStorage.setItem('greenList_v2', JSON.stringify(greenDb));
-                    alert(`Success! Loaded ${Object.keys(lewdDb).length + Object.keys(greenDb).length} movies.`);
-                    if(!currentPrompt) startTurbo();
-                } catch (err) { alert("Invalid JSON file."); }
-            };
-            reader.readAsText(file);
+        function updateStatsUI() {
+            document.getElementById('stat-lewd').innerText = Object.keys(lewdDb).length;
+            document.getElementById('stat-pop').innerText = Object.keys(greenDb).length;
         }
 
-        // --- 4. OFFLINE IMAGE DOWNLOADER ---
-        async function downloadOfflineImages() {
+        // --- 4. CLOUD SYNC & IMAGE DOWNLOADER ---
+        async function syncFromCloud() {
+            const statusEl = document.getElementById('sync-status');
+            try {
+                statusEl.innerText = "Fetching database.json from cloud...";
+                // Append a timestamp to bypass browser cache and force a fresh download
+                const res = await fetch('./database.json?t=' + new Date().getTime()); 
+                if (!res.ok) throw new Error("Could not find database.json");
+                
+                const data = await res.json();
+                lewdDb = data.version === 2 ? data.list : data;
+                greenDb = data.green || {};
+                
+                // Save to iPhone memory
+                localStorage.setItem('lewdList_v2', JSON.stringify(lewdDb));
+                localStorage.setItem('greenList_v2', JSON.stringify(greenDb));
+                updateStatsUI();
+
+                statusEl.innerText = "✅ Database synced! Now caching images...";
+                await downloadOfflineImages(statusEl);
+
+            } catch (err) {
+                statusEl.innerText = "❌ Error: Could not find database.json on server.";
+                console.error(err);
+            }
+        }
+
+        async function downloadOfflineImages(statusEl) {
             const allMovies = Object.values({...lewdDb, ...greenDb});
-            const statusEl = document.getElementById('download-status');
-            
             let posters = allMovies.map(m => m.poster).filter(p => p && p.startsWith('http'));
-            posters = [...new Set(posters)]; // Remove duplicates
+            posters = [...new Set(posters)]; 
             
-            if(posters.length === 0) { statusEl.innerText = "No posters to download."; return; }
+            if(posters.length === 0) { 
+                statusEl.innerText = "✅ Sync Complete! No images needed."; 
+                if(!currentPrompt) startTurbo();
+                return; 
+            }
 
-            statusEl.innerText = `Downloading 0 / ${posters.length}... Please wait.`;
-            
             let count = 0;
-            // Fetch allows the Service Worker to intercept and cache it
             for (let url of posters) {
                 try {
-                    await fetch(url, { mode: 'no-cors' }); 
+                    await fetch(url, { mode: 'no-cors' }); // Forces Service Worker to save the image
                     count++;
-                    if(count % 5 === 0) statusEl.innerText = `Downloading ${count} / ${posters.length}...`;
+                    if(count % 5 === 0) statusEl.innerText = `Caching Images: ${count} / ${posters.length}`;
                 } catch(e) {}
             }
-            statusEl.innerText = "✅ All images saved for offline use!";
-            setTimeout(() => statusEl.innerText = '', 4000);
+            statusEl.innerText = "✅ All Data & Images Ready for Offline Play!";
+            setTimeout(() => statusEl.innerText = '', 5000);
+            if(!currentPrompt) startTurbo();
         }
 
         // --- 5. TURBO LOGIC ---
@@ -216,7 +229,7 @@
             });
 
             if (valid.length === 0) {
-                document.getElementById('turbo-area').innerHTML = `<div style="margin-top:40px;">No connected active movies left. Please import your database!</div>`;
+                document.getElementById('turbo-area').innerHTML = `<div style="margin-top:40px;">No connected movies found. Go to Settings and Sync Database!</div>`;
                 return;
             }
 
@@ -325,6 +338,7 @@
         }
 
         // Init
+        updateStatsUI();
         if (Object.keys(lewdDb).length > 0) startTurbo();
     </script>
 </body>
