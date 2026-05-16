@@ -1,0 +1,16 @@
+{
+    "name": "C2N Trainer",
+    "short_name": "C2N Trainer",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#000000",
+    "theme_color": "#1c1c1e",
+    "icons": [
+      {
+        "src": "icon.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "any maskable"
+      }
+    ]
+  }
