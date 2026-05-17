@@ -48,8 +48,15 @@
         
         /* DROPDOWN */
         .dropdown { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--card-border); margin-top: -5px; margin-bottom: 15px; overflow: hidden; display: none; }
-        .sugg { padding: 15px; border-bottom: 1px solid var(--card-border); font-size: 15px; }
+        .sugg { padding: 15px; border-bottom: 1px solid var(--card-border); font-size: 15px; cursor: pointer; }
         .sugg:last-child { border-bottom: none; }
+
+        /* MOVIES TAB CSS */
+        .movie-grid-card { width: calc(33.333% - 6.667px); background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; overflow: hidden; cursor: pointer; transition: opacity 0.2s, filter 0.2s; }
+        .movie-grid-card.disabled { opacity: 0.4; filter: grayscale(100%); border-color: var(--accent-red); }
+        .movie-grid-info { padding: 6px; font-size: 11px; text-align: center; } /* reduced font size */
+        .movie-grid-title { font-weight: bold; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
+        .movie-tab { cursor: pointer; transition: 0.2s; }
 
         /* TOAST MESSAGES */
         #toast-msg { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--accent-red); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 14px; z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.3s, bottom 0.3s; white-space: nowrap; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
@@ -79,7 +86,26 @@
         </div>
     </div>
 
-    <!-- SETTINGS -->
+    <!-- MOVIES LIST TAB -->
+    <div id="view-movies" class="view-page" style="padding-top: 0;">
+        
+        <!-- Sticky Pinned Header -->
+        <div style="position: sticky; top: 0; background: var(--bg-color); z-index: 10; padding-top: 20px; padding-bottom: 10px;">
+            <h2 style="margin-top:0;">Movies</h2>
+            <div style="display:flex; margin-bottom:15px; border-radius:12px; overflow:hidden; border:1px solid var(--card-border);">
+                <div id="tab-btn-lewd" class="movie-tab active" onclick="switchMovieList('lewd')" style="flex:1; text-align:center; padding:12px; background:var(--accent-purple); color:white; font-weight:bold; font-size:14px;">Lewd</div>
+                <div id="tab-btn-pop" class="movie-tab" onclick="switchMovieList('pop')" style="flex:1; text-align:center; padding:12px; background:var(--card-bg); color:var(--text-muted); font-weight:bold; font-size:14px;">Popular</div>
+            </div>
+            <div style="margin-bottom:0;">
+                <input type="text" id="movies-search" placeholder="Search to turn off/on..." oninput="renderMovieList()" autocomplete="off" style="margin-bottom: 0;">
+            </div>
+        </div>
+
+        <!-- Scrollable List -->
+        <div id="movies-list-container" style="display:flex; flex-wrap:wrap; gap:10px; padding-top: 10px;"></div>
+    </div>
+
+    <!-- SETTINGS / DATA -->
     <div id="view-settings" class="view-page">
         <h2 style="margin-top:0;">Cloud Sync</h2>
         <p style="font-size:14px; color:var(--text-muted);">Ensure you have uploaded your latest <b>database.json</b> file to your GitHub repository.</p>
@@ -102,8 +128,8 @@
         
         <div style="font-size:14px; color:var(--text-muted);">
             <strong>Local Data Info:</strong><br>
-            Lewd List: <span id="stat-lewd">0</span> movies<br>
-            Popular List: <span id="stat-pop">0</span> movies
+            Lewd List: <span id="stat-lewd">0</span><br>
+            Popular List: <span id="stat-pop">0</span>
         </div>
 
         <div style="margin: 20px 0; border-top: 1px solid #333;"></div>
@@ -116,12 +142,9 @@
 
     <!-- BOTTOM NAVIGATION -->
     <nav>
-        <button class="nav-btn active" onclick="switchView('turbo', this)">
-            TURBO
-        </button>
-        <button class="nav-btn" onclick="switchView('settings', this)">
-            DATA
-        </button>
+        <button class="nav-btn active" onclick="switchView('turbo', this)">TURBO</button>
+        <button class="nav-btn" onclick="switchView('movies', this)">MOVIES</button>
+        <button class="nav-btn" onclick="switchView('settings', this)">DATA</button>
     </nav>
 
     <script>
@@ -137,23 +160,25 @@
         // --- 2. GLOBAL STATE ---
         let lewdDb = {};
         let greenDb = {};
+        let disabledMovies = {}; // Persists disabled states across cloud syncs
         let gameMode = 'classic';
         
         let streak = 0;
         let best = 0;
         let totalDatabasePlayable = 0; 
         
-        // Mode Maps
         let classicUsedMap = {}; 
         let turboXBurntList = []; 
 
         let currentPrompt = null;
         let activeHint = null;
+        let currentMovieTab = 'lewd';
 
         // --- 3. CORE LOGIC & INITIALIZATION ---
         function loadState() {
             try { lewdDb = JSON.parse(localStorage.getItem('lewdList_v2')) || {}; } catch(e) { lewdDb = {}; }
             try { greenDb = JSON.parse(localStorage.getItem('greenList_v2')) || {}; } catch(e) { greenDb = {}; }
+            try { disabledMovies = JSON.parse(localStorage.getItem('mobile_disabled_movies')) || {}; } catch(e) { disabledMovies = {}; }
             
             gameMode = localStorage.getItem('mobile_game_mode') || 'classic';
             document.getElementById('setting-game-mode').value = gameMode;
@@ -163,6 +188,8 @@
             
             streak = parseInt(localStorage.getItem(`mobile_streak_${gameMode}`)) || 0;
             best = parseInt(localStorage.getItem(`mobile_best_${gameMode}`)) || 0;
+
+            applyDisabled();
         }
 
         function saveState() {
@@ -171,6 +198,12 @@
             localStorage.setItem(`mobile_best_${gameMode}`, best);
             localStorage.setItem('mobile_classic_map', JSON.stringify(classicUsedMap));
             localStorage.setItem('mobile_turbox_list', JSON.stringify(turboXBurntList));
+            localStorage.setItem('mobile_disabled_movies', JSON.stringify(disabledMovies));
+        }
+
+        function applyDisabled() {
+            for (let id in lewdDb) { if (disabledMovies[id]) lewdDb[id].enabled = false; }
+            for (let id in greenDb) { if (disabledMovies[id]) greenDb[id].enabled = false; }
         }
 
         function changeGameMode() {
@@ -189,11 +222,17 @@
             updateStatsUI();
 
             if (viewId === 'turbo' && !currentPrompt && Object.keys(lewdDb).length > 0) startTurbo();
+            if (viewId === 'movies') renderMovieList();
         }
 
         function updateStatsUI() {
-            document.getElementById('stat-lewd').innerText = Object.keys(lewdDb).length;
-            document.getElementById('stat-pop').innerText = Object.keys(greenDb).length;
+            let lTotal = Object.keys(lewdDb).length;
+            let pTotal = Object.keys(greenDb).length;
+            let lDis = Object.values(lewdDb).filter(m => m.enabled === false).length;
+            let pDis = Object.values(greenDb).filter(m => m.enabled === false).length;
+
+            document.getElementById('stat-lewd').innerText = `${lTotal} movies ${lDis > 0 ? `(${lDis} disabled)` : ''}`;
+            document.getElementById('stat-pop').innerText = `${pTotal} movies ${pDis > 0 ? `(${pDis} disabled)` : ''}`;
         }
 
         function showToast(msg, color = 'var(--accent-red)') {
@@ -213,7 +252,6 @@
             </div>`;
         }
 
-        // Convert TMDB Language Code (e.g., 'fr') to 'French'
         function getLanguageName(langCode) {
             if (!langCode || langCode.toLowerCase() === 'en') return '';
             try {
@@ -224,7 +262,82 @@
             }
         }
 
-        // --- 5. CLOUD SYNC ---
+        // --- 5. MOVIES TAB LOGIC ---
+        function switchMovieList(tab) {
+            currentMovieTab = tab;
+            document.getElementById('tab-btn-lewd').style.background = tab === 'lewd' ? 'var(--accent-purple)' : 'var(--card-bg)';
+            document.getElementById('tab-btn-lewd').style.color = tab === 'lewd' ? 'white' : 'var(--text-muted)';
+            
+            document.getElementById('tab-btn-pop').style.background = tab === 'pop' ? 'var(--accent-green)' : 'var(--card-bg)';
+            document.getElementById('tab-btn-pop').style.color = tab === 'pop' ? 'black' : 'var(--text-muted)';
+            
+            renderMovieList();
+        }
+
+        function toggleMovieStatus(id, listType) {
+            let db = listType === 'lewd' ? lewdDb : greenDb;
+            let movie = db[id];
+            if (!movie) return;
+
+            if (movie.enabled === false) {
+                movie.enabled = true;
+                delete disabledMovies[id];
+            } else {
+                movie.enabled = false;
+                disabledMovies[id] = true;
+            }
+            
+            saveState();
+            localStorage.setItem('lewdList_v2', JSON.stringify(lewdDb));
+            localStorage.setItem('greenList_v2', JSON.stringify(greenDb));
+            
+            calculateDatabaseTotal();
+            updateScore();
+            renderMovieList();
+            
+            if (currentPrompt && currentPrompt.id == id && movie.enabled === false) {
+                showToast("Disabled active prompt. It won't appear next run.");
+            }
+        }
+
+        function renderMovieList() {
+            let container = document.getElementById('movies-list-container');
+            let db = currentMovieTab === 'lewd' ? lewdDb : greenDb;
+            let movies = Object.values(db);
+            
+            let q = document.getElementById('movies-search').value.toLowerCase().trim();
+            if (q) {
+                movies = movies.filter(m => m.title && m.title.toLowerCase().includes(q));
+            }
+            
+            movies.sort((a,b) => (a.title || '').localeCompare(b.title || ''));
+            
+            let html = '';
+            // Render entirely without limit
+            for (let i = 0; i < movies.length; i++) {
+                let m = movies[i];
+                let disabledClass = m.enabled === false ? 'disabled' : '';
+                html += `
+                    <div class="movie-grid-card ${disabledClass}" onclick="toggleMovieStatus('${m.id}', '${currentMovieTab}')">
+                        <div style="position:relative; width:100%; aspect-ratio:2/3; background:#2c2c2e;">
+                            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:3px; font-size:9px; color:#888;">${m.title}</div>
+                            <img src="${m.poster || ''}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;" loading="lazy" onerror="this.style.opacity=0">
+                        </div>
+                        <div class="movie-grid-info">
+                            <div class="movie-grid-title">${m.title}</div>
+                            <div style="color:var(--text-muted)">${m.year || ''}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            if (movies.length === 0) {
+                html = `<div style="width:100%; text-align:center; padding:20px; color:var(--text-muted);">No movies found.</div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        
+        // --- 6. CLOUD SYNC ---
         async function syncFromCloud() {
             const statusEl = document.getElementById('sync-status');
             try {
@@ -235,6 +348,8 @@
                 const data = await res.json();
                 lewdDb = data.version === 2 ? data.list : data;
                 greenDb = data.green || {};
+                
+                applyDisabled(); // Re-apply locally disabled states to fresh DB
                 
                 localStorage.setItem('lewdList_v2', JSON.stringify(lewdDb));
                 localStorage.setItem('greenList_v2', JSON.stringify(greenDb));
@@ -261,7 +376,7 @@
             let missing = [];
             if ('caches' in window) {
                 try {
-                    const cache = await caches.open('c2n-image-cache-v1');
+                    const cache = await caches.open('c2n-image-cache-v2');
                     for (let url of posters) {
                         const matched = await cache.match(url);
                         if (!matched) missing.push(url);
@@ -277,13 +392,18 @@
             }
 
             let count = 0;
-            for (let url of missing) {
-                try {
-                    await fetch(url, { mode: 'no-cors' }); 
-                    count++;
-                    if(count % 5 === 0) statusEl.innerText = `Caching New Images: ${count} / ${missing.length}`;
-                } catch(e) {}
+            const CONCURRENCY = 15; // Download concurrently so it's super fast
+            
+            for (let i = 0; i < missing.length; i += CONCURRENCY) {
+                const chunk = missing.slice(i, i + CONCURRENCY);
+                // Fetching via mode 'cors' prevents opaque cache quota limits!
+                await Promise.all(chunk.map(url => fetch(url, { mode: 'cors' }).catch(e => {})));
+                
+                count += chunk.length;
+                if (count > missing.length) count = missing.length;
+                statusEl.innerText = `Caching New Images: ${count} / ${missing.length}`;
             }
+
             statusEl.innerText = "Database & New Images Ready for Offline!";
             setTimeout(() => statusEl.innerText = '', 5000);
             if(!currentPrompt) startTurbo();
@@ -291,14 +411,14 @@
 
         async function clearImageCache() {
             if ('caches' in window) {
-                await caches.delete('c2n-image-cache-v1');
+                await caches.delete('c2n-image-cache-v2');
                 showToast("Image cache cleared!", "var(--accent-green)");
             } else {
                 showToast("Offline caching not supported on this browser.");
             }
         }
 
-        // --- 6. TURBO ENGINE ---
+        // --- 7. TURBO ENGINE ---
         function getTargets(promptMovie) {
             let lewd = []; let green = []; let used = [];
             let all = Object.values({...lewdDb, ...greenDb});
@@ -360,7 +480,7 @@
             let all = Object.values({...lewdDb, ...greenDb}).filter(m => m.enabled !== false);
             
             if (all.length < 2) {
-                document.getElementById('turbo-area').innerHTML = `<div style="margin-top:60px; font-size:16px; text-align:center; color:var(--text-muted);">Please go to Data tab and sync your database to play!</div>`;
+                document.getElementById('turbo-area').innerHTML = `<div style="margin-top:60px; font-size:16px; text-align:center; color:var(--text-muted);">Please go to Data tab to sync, or Movies tab to enable movies.</div>`;
                 return;
             }
 
@@ -383,7 +503,6 @@
             currentPrompt = valid[Math.floor(Math.random() * valid.length)];
             let targets = getTargets(currentPrompt);
 
-            // Get formatted language name (e.g., "French")
             let langCode = currentPrompt.lang || currentPrompt.original_language || '';
             let langText = getLanguageName(langCode);
             let langDisplay = langText ? ` • ${langText}` : '';
@@ -456,7 +575,6 @@
             let overlap = mPeople.filter(p => pPeople.includes(p));
             
             if (overlap.length > 0) {
-                // Apply Burn
                 if (gameMode === 'classic') {
                     if (!classicUsedMap[currentPrompt.id]) classicUsedMap[currentPrompt.id] = [];
                     classicUsedMap[currentPrompt.id].push(String(movie.id));
@@ -470,7 +588,6 @@
                 
                 document.getElementById('turbo-input').disabled = true;
 
-                // Visual Memory Success
                 document.getElementById('turbo-card').innerHTML = `
                     <div style="background:rgba(50,215,75,0.15); border: 1px solid var(--accent-green); padding:20px; border-radius:12px; margin-bottom:10px;">
                         <h3 style="margin-top:0; color:var(--accent-green); text-align:center;">Correct!</h3>
@@ -510,41 +627,30 @@
             
             let hb = document.getElementById('hint-box');
             hb.innerText = activeHint;
-            
-            // Text align center for the big hangman string
-            hb.style.textAlign = 'center';
-            hb.style.letterSpacing = '3px';
-            hb.style.fontSize = '18px';
-            hb.style.fontWeight = 'bold';
+            hb.style.textAlign = 'center'; hb.style.letterSpacing = '3px';
+            hb.style.fontSize = '18px'; hb.style.fontWeight = 'bold';
             hb.style.display = 'block';
         }
 
         function useCastHint() {
             if (!currentPrompt) return;
             let hb = document.getElementById('hint-box');
-            
             let html = '';
             
-            // Use the detailed data arrays saved by the new desktop export tool
             if (currentPrompt.dir && currentPrompt.dir !== 'N/A') html += `<div><strong style="color:var(--text-muted)">Director: </strong> ${currentPrompt.dir}</div>`;
             if (currentPrompt.writer && currentPrompt.writer.length > 0) html += `<div><strong style="color:var(--text-muted)">Writer:  </strong> ${currentPrompt.writer.join(', ')}</div>`;
             if (currentPrompt.dp && currentPrompt.dp !== 'N/A') html += `<div><strong style="color:var(--text-muted)">DP:        </strong> ${currentPrompt.dp}</div>`;
             if (currentPrompt.comp && currentPrompt.comp !== 'N/A') html += `<div><strong style="color:var(--text-muted)">Music:    </strong> ${currentPrompt.comp}</div>`;
             if (currentPrompt.cast && currentPrompt.cast.length > 0) html += `<div><strong style="color:var(--text-muted)">Cast:     </strong> ${currentPrompt.cast.join(', ')}</div>`;
 
-            // Fallback for older databases that only had 'allPeople'
             if (html === '') {
                 let others = currentPrompt.allPeople.slice(0, 10);
                 html += `<div><strong style="color:var(--text-muted)">Cast/Crew:</strong> ${others.join(', ')}</div>`;
             }
 
             hb.innerHTML = html;
-            
-            // Text align left for the structured list
-            hb.style.textAlign = 'left';
-            hb.style.letterSpacing = 'normal';
-            hb.style.fontSize = '14px';
-            hb.style.fontWeight = 'normal';
+            hb.style.textAlign = 'left'; hb.style.letterSpacing = 'normal';
+            hb.style.fontSize = '14px'; hb.style.fontWeight = 'normal';
             hb.style.display = 'block';
         }
 

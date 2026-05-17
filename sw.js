@@ -1,5 +1,5 @@
-const CACHE_NAME = 'c2n-app-cache-v2';
-const IMAGE_CACHE_NAME = 'c2n-image-cache-v1';
+const CACHE_NAME = 'c2n-app-cache-v3';
+const IMAGE_CACHE_NAME = 'c2n-image-cache-v2'; // Bumped version to clear old bloated cache
 
 const CORE_ASSETS = [
     './index.html',
@@ -17,8 +17,9 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cache) => {
+                    // Delete old versions of caches automatically
                     if (cache !== CACHE_NAME && cache !== IMAGE_CACHE_NAME) {
-                        return caches.delete(cache); // Delete old code caches
+                        return caches.delete(cache); 
                     }
                 })
             );
@@ -29,16 +30,25 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // IMAGES: Cache-First Strategy (Instant load if we have it)
+    // IMAGES: Cache-First Strategy using CORS
     if (url.hostname === 'image.tmdb.org') {
         event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
+            // Match via URL string to ignore mode mismatches (no-cors vs cors)
+            caches.match(url.href).then((cachedResponse) => {
                 if (cachedResponse) return cachedResponse;
-                return fetch(event.request, { mode: 'no-cors' }).then((response) => {
+                
+                // Construct a CORS request to prevent opaque response caching limits
+                const corsRequest = new Request(url.href, { mode: 'cors' });
+                
+                return fetch(corsRequest).then((response) => {
                     return caches.open(IMAGE_CACHE_NAME).then((cache) => {
-                        cache.put(event.request, response.clone());
+                        // Put the CORS response in cache mapped to the URL string
+                        cache.put(url.href, response.clone());
                         return response;
                     });
+                }).catch(() => {
+                    // Fallback
+                    return fetch(event.request);
                 });
             })
         );
