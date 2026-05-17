@@ -47,7 +47,7 @@
         .sugg { padding: 15px; border-bottom: 1px solid var(--card-border); font-size: 15px; }
         .sugg:last-child { border-bottom: none; }
 
-        /* TOAST MESSAGES (Replaces Alerts) */
+        /* TOAST MESSAGES */
         #toast-msg { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--accent-red); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 14px; z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.3s, bottom 0.3s; white-space: nowrap; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         #toast-msg.show { opacity: 1; bottom: 100px; }
 
@@ -58,8 +58,6 @@
 <body>
 
     <div id="offline-warning">✈️ Offline Mode Active</div>
-
-    <!-- TOAST NOTIFICATION -->
     <div id="toast-msg">Message</div>
 
     <!-- TURBO MODE -->
@@ -76,7 +74,6 @@
             
             <div id="turbo-stats" style="text-align:center; font-size: 13px; font-weight: bold;"></div>
             
-            <!-- Used Targets Display -->
             <div id="turbo-used" style="text-align:center; font-size: 12px; color:#666; margin-top:8px; line-height:1.4;"></div>
 
             <input type="text" id="turbo-input" placeholder="Search your lists to connect..." oninput="handleSearch()" autocomplete="off" style="margin-top:20px;">
@@ -100,13 +97,20 @@
         </button>
         <div id="sync-status" style="font-size:13px; color:var(--accent-orange); text-align:center; font-weight:bold; margin-top:10px; min-height: 20px;"></div>
         
-        <div style="margin: 30px 0; border-top: 1px solid #333;"></div>
+        <div style="margin: 20px 0; border-top: 1px solid #333;"></div>
         
         <div style="font-size:14px; color:var(--text-muted);">
             <strong>Local Data Info:</strong><br>
             Lewd List: <span id="stat-lewd">0</span> movies<br>
             Popular List: <span id="stat-pop">0</span> movies
         </div>
+
+        <div style="margin: 20px 0; border-top: 1px solid #333;"></div>
+
+        <p style="font-size:13px; color:var(--text-muted);">If you need to free up phone storage, you can wipe the downloaded movie posters here.</p>
+        <button class="btn-main" style="background:transparent; border: 1px solid var(--accent-red); color:var(--accent-red); font-size: 14px;" onclick="clearImageCache()">
+            🗑️ Clear Image Cache
+        </button>
     </div>
 
     <!-- BOTTOM NAVIGATION -->
@@ -138,7 +142,6 @@
         let streak = parseInt(localStorage.getItem('mobile_streak')) || 0;
         let best = parseInt(localStorage.getItem('mobile_best')) || 0;
         
-        // "Turbo X" Logic: Burned globally for the run
         let globalUsedTargets = JSON.parse(localStorage.getItem('mobile_used_targets')) || []; 
         let totalDatabasePlayable = 0; 
         
@@ -167,9 +170,11 @@
             setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
-        // --- 4. CLOUD SYNC & IMAGE DOWNLOADER ---
+        // --- 4. CLOUD SYNC & CACHE LOGIC ---
         async function syncFromCloud() {
             const statusEl = document.getElementById('sync-status');
+            
+            // 1. Fetch JSON (Safely isolated in its own try/catch)
             try {
                 statusEl.innerText = "Fetching database.json from cloud...";
                 const res = await fetch('./database.json?t=' + new Date().getTime()); 
@@ -182,19 +187,22 @@
                 localStorage.setItem('lewdList_v2', JSON.stringify(lewdDb));
                 localStorage.setItem('greenList_v2', JSON.stringify(greenDb));
                 updateStatsUI();
-
-                statusEl.innerText = "✅ Database synced! Now caching images...";
-                await downloadOfflineImages(statusEl);
-
+                statusEl.innerText = "✅ Database synced! Checking images...";
             } catch (err) {
                 statusEl.innerText = "❌ Error: Could not find database.json on server.";
-                console.error(err);
+                return; // Stop here if DB fetch fails
             }
+
+            // 2. Fetch Images
+            await downloadOfflineImages(statusEl);
         }
 
         async function downloadOfflineImages(statusEl) {
             const allMovies = Object.values({...lewdDb, ...greenDb});
-            let posters = allMovies.map(m => m.poster).filter(p => p && p.startsWith('http'));
+            // Standardize URLs to https to prevent cache mismatches
+            let posters = allMovies.map(m => m.poster)
+                                   .filter(p => p && p.startsWith('http'))
+                                   .map(p => p.replace('http://', 'https://'));
             posters = [...new Set(posters)]; 
             
             if(posters.length === 0) { 
@@ -203,14 +211,15 @@
                 return; 
             }
 
-            // ONLY FETCH MISSING IMAGES
             let missing = [];
             if ('caches' in window) {
-                const cache = await caches.open('c2n-image-cache-v1');
-                for (let url of posters) {
-                    const matched = await cache.match(url);
-                    if (!matched) missing.push(url);
-                }
+                try {
+                    const cache = await caches.open('c2n-image-cache-v1');
+                    for (let url of posters) {
+                        const matched = await cache.match(url);
+                        if (!matched) missing.push(url);
+                    }
+                } catch(e) { missing = posters; }
             } else {
                 missing = posters;
             }
@@ -225,7 +234,7 @@
             let count = 0;
             for (let url of missing) {
                 try {
-                    await fetch(url, { mode: 'no-cors' }); // Saves to SW cache
+                    await fetch(url, { mode: 'no-cors' }); 
                     count++;
                     if(count % 5 === 0) statusEl.innerText = `Caching New Images: ${count} / ${missing.length}`;
                 } catch(e) {}
@@ -233,6 +242,15 @@
             statusEl.innerText = "✅ Database & New Images Ready for Offline!";
             setTimeout(() => statusEl.innerText = '', 5000);
             if(!currentPrompt) startTurbo();
+        }
+
+        async function clearImageCache() {
+            if ('caches' in window) {
+                await caches.delete('c2n-image-cache-v1');
+                showToast("✅ Image cache cleared!", "var(--accent-green)");
+            } else {
+                showToast("Offline caching not supported on this browser.");
+            }
         }
 
         // --- 5. TURBO LOGIC ---
@@ -289,7 +307,6 @@
             currentPrompt = valid[Math.floor(Math.random() * valid.length)];
             let targets = getTargets(currentPrompt);
 
-            // Vertical Card Rendering
             document.getElementById('turbo-card').innerHTML = `
                 <div class="movie-card-vert">
                     <img class="poster-vert" src="${currentPrompt.poster}" alt="Poster" onerror="this.style.display='none'">
@@ -299,7 +316,6 @@
             
             document.getElementById('turbo-stats').innerHTML = `<span style="color:var(--accent-purple)">Lewd Targets: ${targets.lewd.length}</span> &nbsp;|&nbsp; <span style="color:var(--accent-green)">Pop Targets: ${targets.green.length}</span>`;
             
-            // Display already burnt targets specific to this prompt
             let usedHtml = '';
             if (targets.used.length > 0) {
                 let burntTitles = targets.used.map(m => m.title).join(' • ');
@@ -322,7 +338,6 @@
             let results = all.filter(m => m.title.toLowerCase().includes(qLower) && m.enabled !== false);
 
             if(results.length > 0) {
-                // Advanced Desktop Sorting
                 results.sort((a,b) => {
                     let aStarts = a.title.toLowerCase().startsWith(qLower) ? -1 : 1;
                     let bStarts = b.title.toLowerCase().startsWith(qLower) ? -1 : 1;
@@ -358,7 +373,6 @@
 
             let overlap = movie.allPeople.filter(p => currentPrompt.allPeople.includes(p));
             if (overlap.length > 0) {
-                // Correct! Burn the target globally
                 globalUsedTargets.push(String(movie.id));
                 streak++;
                 if(streak > best) best = streak;
@@ -368,7 +382,6 @@
                 
                 document.getElementById('turbo-input').disabled = true;
 
-                // Visual Memory Success Layout
                 document.getElementById('turbo-card').innerHTML = `
                     <div style="background:rgba(50,215,75,0.15); border: 1px solid var(--accent-green); padding:20px; border-radius:12px; margin-bottom:10px;">
                         <h3 style="margin-top:0; color:var(--accent-green); text-align:center;">Correct!</h3>
