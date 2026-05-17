@@ -26,22 +26,26 @@
         
         /* BOTTOM NAV */
         nav { position: fixed; bottom: 0; width: 100%; height: 75px; background: rgba(28,28,30,0.95); backdrop-filter: blur(15px); border-top: 1px solid var(--card-border); display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); z-index: 1000; }
-        .nav-btn { flex: 1; text-align: center; color: var(--text-muted); font-size: 11px; font-weight: bold; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .nav-btn { flex: 1; text-align: center; color: var(--text-muted); font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; transition: 0.2s;}
         .nav-btn.active { color: var(--accent-orange); }
-        .nav-icon { font-size: 24px; }
 
         /* INPUTS */
         input[type="text"] { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid var(--card-border); background: #000; color: white; font-size: 16px; outline: none; margin-bottom: 10px; transition: 0.2s;}
         input[type="text"]:focus { border-color: var(--accent-orange); }
+        select.input-select { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid var(--card-border); background: #000; color: white; font-size: 15px; outline: none; margin-bottom: 10px; appearance: none; }
+        
         .btn-main { width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; background: var(--accent-purple); color: white; cursor: pointer; text-align: center; margin-bottom: 10px; transition: 0.2s;}
         .btn-main:active { opacity: 0.7; }
         
-        /* VERTICAL CARD UI */
+        /* VERTICAL CARD UI & FALLBACK POSTERS */
         .movie-card-vert { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .poster-vert { width: 140px; height: 210px; border-radius: 8px; object-fit: cover; background: #333; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.8); }
-        .title-vert { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
+        .title-vert { font-size: 40px; font-weight: normal; line-height: 1.1; margin-bottom: 10px; }
         .info-vert { font-size: 14px; color: var(--text-muted); line-height: 1.4; }
 
+        .poster-container { position: relative; margin-bottom: 15px; border-radius: 12px; overflow: hidden; background: #2c2c2e; box-shadow: 0 5px 15px rgba(0,0,0,0.8); flex-shrink: 0; }
+        .poster-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 10px; font-size: 14px; font-weight: bold; color: #888; text-align: center; z-index: 1; }
+        .poster-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; transition: opacity 0.2s; }
+        
         /* DROPDOWN */
         .dropdown { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--card-border); margin-top: -5px; margin-bottom: 15px; overflow: hidden; display: none; }
         .sugg { padding: 15px; border-bottom: 1px solid var(--card-border); font-size: 15px; }
@@ -57,33 +61,21 @@
 </head>
 <body>
 
-    <div id="offline-warning">✈️ Offline Mode Active</div>
+    <div id="offline-warning">Offline Mode Active</div>
     <div id="toast-msg">Message</div>
 
     <!-- TURBO MODE -->
     <div id="view-turbo" class="view-page active">
         <div style="display:flex; justify-content:space-between; margin-bottom: 15px; background:var(--card-bg); padding:10px 15px; border-radius:12px; font-size: 14px;">
-            <div style="font-weight:bold; color:var(--text-muted);">Streak: <span id="ui-streak" style="color:var(--accent-orange);">0</span></div>
-            <div style="font-weight:bold; color:var(--text-muted);">Burnt: <span id="ui-cleared" style="color:var(--accent-green);">0 / 0</span></div>
+            <div style="font-weight:bold; color:var(--text-muted);">
+                Streak: <span id="ui-streak" style="color:var(--accent-orange);">0</span>
+                (Best: <span id="ui-best">0</span>)
+            </div>
+            <div id="ui-cleared-container" style="font-weight:bold; color:var(--text-muted); display:none;">Cleared: <span id="ui-cleared" style="color:var(--accent-green);">0 / 0</span></div>
         </div>
 
         <div id="turbo-area">
-            <div style="color:var(--text-muted); margin-bottom:10px; text-align: center; font-weight:bold;">Computer Plays:</div>
-            
-            <div id="turbo-card"></div>
-            
-            <div id="turbo-stats" style="text-align:center; font-size: 13px; font-weight: bold;"></div>
-            
-            <div id="turbo-used" style="text-align:center; font-size: 12px; color:#666; margin-top:8px; line-height:1.4;"></div>
-
-            <input type="text" id="turbo-input" placeholder="Search your lists to connect..." oninput="handleSearch()" autocomplete="off" style="margin-top:20px;">
-            <div id="turbo-dropdown" class="dropdown"></div>
-
-            <div style="display:flex; gap:10px;">
-                <button class="btn-main" style="background:#333;" onclick="useHint()">Hint</button>
-                <button class="btn-main" style="background:rgba(255,69,58,0.2); color:var(--accent-red);" onclick="gameOver('Gave Up')">Give Up</button>
-            </div>
-            <div id="hint-box" style="margin-top:10px; font-size:18px; letter-spacing:3px; display:none; background:#333; padding:10px; border-radius:8px; text-align: center; font-weight:bold;"></div>
+            <!-- Dynamic Content Injected Here -->
         </div>
     </div>
 
@@ -93,9 +85,18 @@
         <p style="font-size:14px; color:var(--text-muted);">Ensure you have uploaded your latest <b>database.json</b> file to your GitHub repository.</p>
         
         <button class="btn-main" style="background:var(--accent-green); color:black;" onclick="syncFromCloud()">
-            ☁️ 1-Click Sync Database & Images
+            1-Click Sync Database & Images
         </button>
         <div id="sync-status" style="font-size:13px; color:var(--accent-orange); text-align:center; font-weight:bold; margin-top:10px; min-height: 20px;"></div>
+        
+        <div style="margin: 20px 0; border-top: 1px solid #333;"></div>
+
+        <h3 style="margin-top:0; margin-bottom: 5px;">Game Mode</h3>
+        <p style="font-size:13px; color:var(--text-muted);"><b>Classic:</b> Infinite run. Targets are burnt per-prompt only.<br><b>Turbo X:</b> Clear the database! Targets are burnt globally.</p>
+        <select id="setting-game-mode" class="input-select" onchange="changeGameMode()">
+            <option value="classic">Classic Mode</option>
+            <option value="turbox">Turbo X</option>
+        </select>
         
         <div style="margin: 20px 0; border-top: 1px solid #333;"></div>
         
@@ -109,19 +110,17 @@
 
         <p style="font-size:13px; color:var(--text-muted);">If you need to free up phone storage, you can wipe the downloaded movie posters here.</p>
         <button class="btn-main" style="background:transparent; border: 1px solid var(--accent-red); color:var(--accent-red); font-size: 14px;" onclick="clearImageCache()">
-            🗑️ Clear Image Cache
+            Clear Image Cache
         </button>
     </div>
 
     <!-- BOTTOM NAVIGATION -->
     <nav>
         <button class="nav-btn active" onclick="switchView('turbo', this)">
-            <span class="nav-icon">⚡️</span>
-            Turbo
+            TURBO
         </button>
         <button class="nav-btn" onclick="switchView('settings', this)">
-            <span class="nav-icon">⚙️</span>
-            Data
+            DATA
         </button>
     </nav>
 
@@ -135,26 +134,61 @@
         window.addEventListener('online', () => document.getElementById('offline-warning').style.display = 'none');
         if (!navigator.onLine) document.getElementById('offline-warning').style.display = 'block';
 
-        // --- 2. STATE ---
-        let lewdDb = JSON.parse(localStorage.getItem('lewdList_v2')) || {};
-        let greenDb = JSON.parse(localStorage.getItem('greenList_v2')) || {};
+        // --- 2. GLOBAL STATE ---
+        let lewdDb = {};
+        let greenDb = {};
+        let gameMode = 'classic';
         
-        let streak = parseInt(localStorage.getItem('mobile_streak')) || 0;
-        let best = parseInt(localStorage.getItem('mobile_best')) || 0;
-        
-        let globalUsedTargets = JSON.parse(localStorage.getItem('mobile_used_targets')) || []; 
+        let streak = 0;
+        let best = 0;
         let totalDatabasePlayable = 0; 
         
+        // Mode Maps
+        let classicUsedMap = {}; 
+        let turboXBurntList = []; 
+
         let currentPrompt = null;
         let activeHint = null;
 
-        // --- 3. UI LOGIC ---
+        // --- 3. CORE LOGIC & INITIALIZATION ---
+        function loadState() {
+            try { lewdDb = JSON.parse(localStorage.getItem('lewdList_v2')) || {}; } catch(e) { lewdDb = {}; }
+            try { greenDb = JSON.parse(localStorage.getItem('greenList_v2')) || {}; } catch(e) { greenDb = {}; }
+            
+            gameMode = localStorage.getItem('mobile_game_mode') || 'classic';
+            document.getElementById('setting-game-mode').value = gameMode;
+
+            try { classicUsedMap = JSON.parse(localStorage.getItem('mobile_classic_map')) || {}; } catch(e) { classicUsedMap = {}; }
+            try { turboXBurntList = JSON.parse(localStorage.getItem('mobile_turbox_list')) || []; } catch(e) { turboXBurntList = []; }
+            
+            streak = parseInt(localStorage.getItem(`mobile_streak_${gameMode}`)) || 0;
+            best = parseInt(localStorage.getItem(`mobile_best_${gameMode}`)) || 0;
+        }
+
+        function saveState() {
+            localStorage.setItem('mobile_game_mode', gameMode);
+            localStorage.setItem(`mobile_streak_${gameMode}`, streak);
+            localStorage.setItem(`mobile_best_${gameMode}`, best);
+            localStorage.setItem('mobile_classic_map', JSON.stringify(classicUsedMap));
+            localStorage.setItem('mobile_turbox_list', JSON.stringify(turboXBurntList));
+        }
+
+        function changeGameMode() {
+            let newMode = document.getElementById('setting-game-mode').value;
+            if (newMode === gameMode) return;
+            gameMode = newMode;
+            startTurbo();
+        }
+
+        // --- 4. UI HELPERS ---
         function switchView(viewId, btnElem) {
             document.querySelectorAll('.view-page').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + viewId).classList.add('active');
             btnElem.classList.add('active');
             updateStatsUI();
+
+            if (viewId === 'turbo' && !currentPrompt && Object.keys(lewdDb).length > 0) startTurbo();
         }
 
         function updateStatsUI() {
@@ -170,11 +204,29 @@
             setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
-        // --- 4. CLOUD SYNC & CACHE LOGIC ---
+        function generatePosterHTML(movie, width, height) {
+            let safeTitle = movie.title || 'Unknown Title';
+            return `
+            <div class="poster-container" style="width:${width}; height:${height};">
+                <div class="poster-fallback">${safeTitle}</div>
+                <img class="poster-img" src="${movie.poster || ''}" alt="" onerror="this.style.opacity=0">
+            </div>`;
+        }
+
+        // Convert TMDB Language Code (e.g., 'fr') to 'French'
+        function getLanguageName(langCode) {
+            if (!langCode || langCode.toLowerCase() === 'en') return '';
+            try {
+                const displayName = new Intl.DisplayNames(['en'], { type: 'language' });
+                return displayName.of(langCode);
+            } catch (e) {
+                return langCode.toUpperCase();
+            }
+        }
+
+        // --- 5. CLOUD SYNC ---
         async function syncFromCloud() {
             const statusEl = document.getElementById('sync-status');
-            
-            // 1. Fetch JSON (Safely isolated in its own try/catch)
             try {
                 statusEl.innerText = "Fetching database.json from cloud...";
                 const res = await fetch('./database.json?t=' + new Date().getTime()); 
@@ -187,26 +239,21 @@
                 localStorage.setItem('lewdList_v2', JSON.stringify(lewdDb));
                 localStorage.setItem('greenList_v2', JSON.stringify(greenDb));
                 updateStatsUI();
-                statusEl.innerText = "✅ Database synced! Checking images...";
+                statusEl.innerText = "Database synced! Checking images...";
             } catch (err) {
-                statusEl.innerText = "❌ Error: Could not find database.json on server.";
-                return; // Stop here if DB fetch fails
+                statusEl.innerText = "Error: Could not find database.json on server.";
+                return;
             }
-
-            // 2. Fetch Images
             await downloadOfflineImages(statusEl);
         }
 
         async function downloadOfflineImages(statusEl) {
             const allMovies = Object.values({...lewdDb, ...greenDb});
-            // Standardize URLs to https to prevent cache mismatches
-            let posters = allMovies.map(m => m.poster)
-                                   .filter(p => p && p.startsWith('http'))
-                                   .map(p => p.replace('http://', 'https://'));
+            let posters = allMovies.map(m => m.poster).filter(p => p && p.startsWith('http')).map(p => p.replace('http://', 'https://'));
             posters = [...new Set(posters)]; 
             
             if(posters.length === 0) { 
-                statusEl.innerText = "✅ Sync Complete! No images needed."; 
+                statusEl.innerText = "Sync Complete!"; 
                 if(!currentPrompt) startTurbo();
                 return; 
             }
@@ -220,12 +267,10 @@
                         if (!matched) missing.push(url);
                     }
                 } catch(e) { missing = posters; }
-            } else {
-                missing = posters;
-            }
+            } else { missing = posters; }
 
             if(missing.length === 0) {
-                statusEl.innerText = "✅ All images already cached for offline!";
+                statusEl.innerText = "All images already cached for offline!";
                 if(!currentPrompt) startTurbo();
                 setTimeout(() => statusEl.innerText = '', 3000);
                 return;
@@ -239,7 +284,7 @@
                     if(count % 5 === 0) statusEl.innerText = `Caching New Images: ${count} / ${missing.length}`;
                 } catch(e) {}
             }
-            statusEl.innerText = "✅ Database & New Images Ready for Offline!";
+            statusEl.innerText = "Database & New Images Ready for Offline!";
             setTimeout(() => statusEl.innerText = '', 5000);
             if(!currentPrompt) startTurbo();
         }
@@ -247,22 +292,27 @@
         async function clearImageCache() {
             if ('caches' in window) {
                 await caches.delete('c2n-image-cache-v1');
-                showToast("✅ Image cache cleared!", "var(--accent-green)");
+                showToast("Image cache cleared!", "var(--accent-green)");
             } else {
                 showToast("Offline caching not supported on this browser.");
             }
         }
 
-        // --- 5. TURBO LOGIC ---
+        // --- 6. TURBO ENGINE ---
         function getTargets(promptMovie) {
             let lewd = []; let green = []; let used = [];
             let all = Object.values({...lewdDb, ...greenDb});
+            let promptPeople = promptMovie.allPeople || [];
             
+            let promptUsedList = gameMode === 'classic' ? (classicUsedMap[promptMovie.id] || []) : turboXBurntList;
+
             all.forEach(m => {
                 if (m.id == promptMovie.id || m.enabled === false) return;
-                let overlap = m.allPeople.some(p => promptMovie.allPeople.includes(p));
+                let mPeople = m.allPeople || [];
+                let overlap = mPeople.some(p => promptPeople.includes(p));
+                
                 if (overlap) {
-                    if (globalUsedTargets.includes(String(m.id))) {
+                    if (promptUsedList.includes(String(m.id))) {
                         used.push(m);
                     } else {
                         if (lewdDb[m.id]) lewd.push(m);
@@ -274,12 +324,13 @@
         }
 
         function calculateDatabaseTotal() {
-            let all = Object.values({...lewdDb, ...greenDb}).filter(m => m.enabled !== false);
-            totalDatabasePlayable = all.length;
+            totalDatabasePlayable = Object.values({...lewdDb, ...greenDb}).filter(m => m.enabled !== false).length;
         }
 
         function startTurbo() {
-            globalUsedTargets = [];
+            if (gameMode === 'classic') classicUsedMap = {};
+            else turboXBurntList = [];
+            
             streak = 0;
             saveState();
             calculateDatabaseTotal();
@@ -287,41 +338,69 @@
             nextPrompt();
         }
 
-        function nextPrompt() {
-            activeHint = null;
-            document.getElementById('hint-box').style.display = 'none';
-            document.getElementById('turbo-input').value = '';
-            document.getElementById('turbo-input').disabled = false;
+        function renderBaseTurboUI() {
+            document.getElementById('turbo-area').innerHTML = `
+                <div id="turbo-card"></div>
+                <div id="turbo-stats" style="text-align:center; font-size: 13px; font-weight: bold;"></div>
+                <div id="turbo-used" style="text-align:center; font-size: 12px; color:#666; margin-top:8px; line-height:1.4;"></div>
+                <input type="text" id="turbo-input" placeholder="Search your lists to connect..." oninput="handleSearch()" autocomplete="off" style="margin-top:20px;">
+                <div id="turbo-dropdown" class="dropdown"></div>
+                
+                <div style="display:flex; gap:10px; margin-bottom: 10px;">
+                    <button class="btn-main" style="background:#333; margin-bottom:0;" onclick="useHint()">Hint (Letters)</button>
+                    <button class="btn-main" style="background:#333; margin-bottom:0;" onclick="useCastHint()">Hint (Cast)</button>
+                </div>
+                <button class="btn-main" style="background:rgba(255,69,58,0.2); color:var(--accent-red);" onclick="gameOver('Gave Up')">Give Up</button>
+                
+                <div id="hint-box" style="margin-top:10px; display:none; background:#333; padding:15px; border-radius:8px; text-align: left; line-height: 1.6;"></div>
+            `;
+        }
 
+        function nextPrompt() {
             let all = Object.values({...lewdDb, ...greenDb}).filter(m => m.enabled !== false);
+            
+            if (all.length < 2) {
+                document.getElementById('turbo-area').innerHTML = `<div style="margin-top:60px; font-size:16px; text-align:center; color:var(--text-muted);">Please go to Data tab and sync your database to play!</div>`;
+                return;
+            }
+
             let valid = all.filter(m => {
                 let t = getTargets(m);
                 return t.lewd.length > 0 || t.green.length > 0;
             });
 
             if (valid.length === 0) {
-                document.getElementById('turbo-area').innerHTML = `<div style="margin-top:40px; font-size:18px;">🎉 Perfect Run! You cleared the entire database!</div><button class="btn-main" onclick="startTurbo()" style="margin-top:20px;">Restart Run</button>`;
+                document.getElementById('turbo-area').innerHTML = `
+                    <div style="margin-top:60px; font-size:22px; text-align:center; font-weight:bold; color:var(--accent-green);">Perfect Run!</div>
+                    <div style="text-align:center; color:var(--text-muted); margin-top:10px;">You successfully burnt the entire database.</div>
+                    <button class="btn-main" onclick="startTurbo()" style="margin-top:30px; background:var(--accent-orange);">Start Fresh Run</button>`;
                 return;
             }
 
+            renderBaseTurboUI();
+            activeHint = null;
+            
             currentPrompt = valid[Math.floor(Math.random() * valid.length)];
             let targets = getTargets(currentPrompt);
 
+            // Get formatted language name (e.g., "French")
+            let langCode = currentPrompt.lang || currentPrompt.original_language || '';
+            let langText = getLanguageName(langCode);
+            let langDisplay = langText ? ` • ${langText}` : '';
+
             document.getElementById('turbo-card').innerHTML = `
                 <div class="movie-card-vert">
-                    <img class="poster-vert" src="${currentPrompt.poster}" alt="Poster" onerror="this.style.display='none'">
-                    <div class="title-vert">${currentPrompt.title}</div>
-                    <div class="info-vert">${currentPrompt.year} • ${currentPrompt.dir}</div>
+                    ${generatePosterHTML(currentPrompt, '330px', '495px')}
+                    <div class="title-vert">${currentPrompt.title || 'Unknown'}</div>
+                    <div class="info-vert">${currentPrompt.year || 'Unknown'}${langDisplay} • ${currentPrompt.dir || 'Unknown'}</div>
                 </div>`;
             
             document.getElementById('turbo-stats').innerHTML = `<span style="color:var(--accent-purple)">Lewd Targets: ${targets.lewd.length}</span> &nbsp;|&nbsp; <span style="color:var(--accent-green)">Pop Targets: ${targets.green.length}</span>`;
             
-            let usedHtml = '';
             if (targets.used.length > 0) {
-                let burntTitles = targets.used.map(m => m.title).join(' • ');
-                usedHtml = `<strong>Crossed Out for this prompt:</strong><br>${burntTitles}`;
+                let txt = gameMode === 'classic' ? 'Already used for this prompt:' : 'Globally Burnt Targets:';
+                document.getElementById('turbo-used').innerHTML = `<strong>${txt}</strong><br>${targets.used.map(m => m.title).join(' • ')}`;
             }
-            document.getElementById('turbo-used').innerHTML = usedHtml;
 
             document.getElementById('turbo-input').focus();
         }
@@ -334,8 +413,7 @@
 
             let all = Object.values({...lewdDb, ...greenDb});
             let qLower = query.toLowerCase();
-            
-            let results = all.filter(m => m.title.toLowerCase().includes(qLower) && m.enabled !== false);
+            let results = all.filter(m => m.title && m.title.toLowerCase().includes(qLower) && m.enabled !== false);
 
             if(results.length > 0) {
                 results.sort((a,b) => {
@@ -345,61 +423,71 @@
                     return a.title.length - b.title.length;
                 });
 
+                let promptUsedList = gameMode === 'classic' ? (classicUsedMap[currentPrompt.id] || []) : turboXBurntList;
+
                 results.slice(0,6).forEach(m => {
                     let div = document.createElement('div');
                     div.className = 'sugg';
                     
-                    if (globalUsedTargets.includes(String(m.id))) {
+                    if (promptUsedList.includes(String(m.id))) {
                         div.style.opacity = '0.4';
                         div.innerHTML = `<span style="text-decoration:line-through;">${m.title}</span> <span style="color:#666; font-size:12px;">(Burnt)</span>`;
-                        div.onclick = () => showToast("Target is already burnt globally!");
+                        div.onclick = () => showToast(gameMode === 'classic' ? "Already used for this prompt!" : "Target is globally burnt!");
                     } else {
-                        let star = lewdDb[m.id] ? `<span style="color:var(--accent-purple)">★</span>` : `<span style="color:var(--accent-green)">★</span>`;
-                        div.innerHTML = `${m.title} ${star} <span style="color:#666; font-size:12px;">(${m.year})</span>`;
+                        let dot = lewdDb[m.id] ? `<span style="color:var(--accent-purple)">●</span>` : `<span style="color:var(--accent-green)">●</span>`;
+                        div.innerHTML = `${m.title} ${dot} <span style="color:#666; font-size:12px;">(${m.year})</span>`;
                         div.onclick = () => submitGuess(m);
                     }
                     dd.appendChild(div);
                 });
                 dd.style.display = 'block';
-            } else {
-                dd.style.display = 'none';
-            }
+            } else { dd.style.display = 'none'; }
         }
 
         function submitGuess(movie) {
             document.getElementById('turbo-dropdown').style.display = 'none';
             if (movie.id === currentPrompt.id) { showToast("Cannot play the prompt movie back!"); return; }
-            if (globalUsedTargets.includes(String(movie.id))) { showToast("Target already burnt!"); return; }
+            
+            let promptUsedList = gameMode === 'classic' ? (classicUsedMap[currentPrompt.id] || []) : turboXBurntList;
+            if (promptUsedList.includes(String(movie.id))) { showToast("Target already burnt!"); return; }
 
-            let overlap = movie.allPeople.filter(p => currentPrompt.allPeople.includes(p));
+            let mPeople = movie.allPeople || [];
+            let pPeople = currentPrompt.allPeople || [];
+            let overlap = mPeople.filter(p => pPeople.includes(p));
+            
             if (overlap.length > 0) {
-                globalUsedTargets.push(String(movie.id));
+                // Apply Burn
+                if (gameMode === 'classic') {
+                    if (!classicUsedMap[currentPrompt.id]) classicUsedMap[currentPrompt.id] = [];
+                    classicUsedMap[currentPrompt.id].push(String(movie.id));
+                } else {
+                    turboXBurntList.push(String(movie.id));
+                }
+                
                 streak++;
                 if(streak > best) best = streak;
-                
-                saveState();
-                updateScore();
+                saveState(); updateScore();
                 
                 document.getElementById('turbo-input').disabled = true;
 
+                // Visual Memory Success
                 document.getElementById('turbo-card').innerHTML = `
                     <div style="background:rgba(50,215,75,0.15); border: 1px solid var(--accent-green); padding:20px; border-radius:12px; margin-bottom:10px;">
                         <h3 style="margin-top:0; color:var(--accent-green); text-align:center;">Correct!</h3>
-                        <div style="display:flex; justify-content:center; align-items:center; gap: 15px;">
-                            <img src="${currentPrompt.poster}" style="width:90px; height:135px; border-radius:8px; object-fit:cover;">
-                            <div style="text-align:center; color:var(--text-muted); font-size:12px; font-weight:bold;">
-                                ➡️<br><span style="color:var(--text-main); font-size:14px;">${overlap[0]}</span><br>➡️
+                        <div style="display:flex; justify-content:center; align-items:center; gap: 10px; flex-wrap: wrap;">
+                            ${generatePosterHTML(currentPrompt, '220px', '330px')}
+                            <div style="text-align:center; color:var(--text-muted); font-size:14px; font-weight:bold; min-width: 100%; margin: 10px 0;">
+                                &darr;<br><span style="color:var(--text-main); font-size:16px;">${overlap[0]}</span><br>&darr;
                             </div>
-                            <img src="${movie.poster}" style="width:90px; height:135px; border-radius:8px; object-fit:cover;">
+                            ${generatePosterHTML(movie, '220px', '330px')}
                         </div>
                     </div>`;
                 
                 document.getElementById('turbo-stats').innerHTML = '';
                 document.getElementById('turbo-used').innerHTML = '';
-                
                 setTimeout(nextPrompt, 1800);
             } else {
-                showToast("No valid connection to the prompt!");
+                showToast("No valid connection found.");
                 let input = document.getElementById('turbo-input');
                 input.value = ''; input.focus();
             }
@@ -412,8 +500,9 @@
             
             if (!activeHint) {
                 let pick = valid[Math.floor(Math.random() * valid.length)];
+                let title = pick.title || '';
                 let inWord = false;
-                activeHint = pick.title.split('').map(c => {
+                activeHint = title.split('').map(c => {
                     if (/[a-zA-Z0-9]/.test(c)) { if (!inWord) { inWord = true; return c; } else { return '_'; } } 
                     else { inWord = false; return c; }
                 }).join('');
@@ -421,6 +510,41 @@
             
             let hb = document.getElementById('hint-box');
             hb.innerText = activeHint;
+            
+            // Text align center for the big hangman string
+            hb.style.textAlign = 'center';
+            hb.style.letterSpacing = '3px';
+            hb.style.fontSize = '18px';
+            hb.style.fontWeight = 'bold';
+            hb.style.display = 'block';
+        }
+
+        function useCastHint() {
+            if (!currentPrompt) return;
+            let hb = document.getElementById('hint-box');
+            
+            let html = '';
+            
+            // Use the detailed data arrays saved by the new desktop export tool
+            if (currentPrompt.dir && currentPrompt.dir !== 'N/A') html += `<div><strong style="color:var(--text-muted)">Director: </strong> ${currentPrompt.dir}</div>`;
+            if (currentPrompt.writer && currentPrompt.writer.length > 0) html += `<div><strong style="color:var(--text-muted)">Writer:  </strong> ${currentPrompt.writer.join(', ')}</div>`;
+            if (currentPrompt.dp && currentPrompt.dp !== 'N/A') html += `<div><strong style="color:var(--text-muted)">DP:        </strong> ${currentPrompt.dp}</div>`;
+            if (currentPrompt.comp && currentPrompt.comp !== 'N/A') html += `<div><strong style="color:var(--text-muted)">Music:    </strong> ${currentPrompt.comp}</div>`;
+            if (currentPrompt.cast && currentPrompt.cast.length > 0) html += `<div><strong style="color:var(--text-muted)">Cast:     </strong> ${currentPrompt.cast.join(', ')}</div>`;
+
+            // Fallback for older databases that only had 'allPeople'
+            if (html === '') {
+                let others = currentPrompt.allPeople.slice(0, 10);
+                html += `<div><strong style="color:var(--text-muted)">Cast/Crew:</strong> ${others.join(', ')}</div>`;
+            }
+
+            hb.innerHTML = html;
+            
+            // Text align left for the structured list
+            hb.style.textAlign = 'left';
+            hb.style.letterSpacing = 'normal';
+            hb.style.fontSize = '14px';
+            hb.style.fontWeight = 'normal';
             hb.style.display = 'block';
         }
 
@@ -437,7 +561,7 @@
                     <div style="text-align:center; font-size:14px; margin-bottom:10px;">You missed opportunities for:</div>
                     ${lewdHtml}
                     ${greenHtml}
-                    <br><button class="btn-main" onclick="startTurbo()" style="background:var(--accent-orange); margin-bottom:0;">Start Fresh Run</button>
+                    <br><button class="btn-main" onclick="startTurbo()" style="background:var(--accent-orange); margin-bottom:0; margin-top:15px;">Start Fresh Run</button>
                 </div>`;
             document.getElementById('turbo-stats').innerHTML = '';
             document.getElementById('turbo-used').innerHTML = '';
@@ -445,18 +569,24 @@
         }
 
         function updateScore() {
-            document.getElementById('ui-streak').innerText = streak;
-            document.getElementById('ui-best').innerText = best;
-            document.getElementById('ui-cleared').innerText = `${globalUsedTargets.length} / ${totalDatabasePlayable}`;
-        }
-
-        function saveState() {
-            localStorage.setItem('mobile_streak', streak);
-            localStorage.setItem('mobile_best', best);
-            localStorage.setItem('mobile_used_targets', JSON.stringify(globalUsedTargets));
+            let streakEl = document.getElementById('ui-streak');
+            if(streakEl) streakEl.innerText = streak;
+            
+            let bestEl = document.getElementById('ui-best');
+            if(bestEl) bestEl.innerText = best;
+            
+            const clearContainer = document.getElementById('ui-cleared-container');
+            if (gameMode === 'turbox') {
+                clearContainer.style.display = 'block';
+                document.getElementById('ui-cleared').innerText = `${turboXBurntList.length} / ${totalDatabasePlayable}`;
+            } else {
+                clearContainer.style.display = 'none';
+            }
         }
 
         // Init
+        loadState();
+        updateStatsUI();
         calculateDatabaseTotal();
         updateScore();
         if (Object.keys(lewdDb).length > 0 && !currentPrompt) startTurbo();

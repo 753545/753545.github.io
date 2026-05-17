@@ -45,14 +45,18 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // CODE & JSON: Network-First Strategy (Always get latest version if online!)
+    // CODE & JSON: Network-First Strategy
     event.respondWith(
         fetch(event.request).then((networkResponse) => {
-            // Save the newest version to cache for next time we go offline
             let clone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, clone);
-            });
+            
+            // DON'T cache the database JSON if it has the cache-busting timestamp
+            if (!url.searchParams.has('t')) {
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, clone);
+                });
+            }
+            
             return networkResponse;
         }).catch(() => {
             // If offline, fall back to the cache
