@@ -25,28 +25,31 @@
         .view-page.active { display: block; }
         
         /* BOTTOM NAV */
-        nav { position: fixed; bottom: 0; width: 100%; height: 75px; background: rgba(28,28,30,0.9); backdrop-filter: blur(15px); border-top: 1px solid var(--card-border); display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); z-index: 1000; }
+        nav { position: fixed; bottom: 0; width: 100%; height: 75px; background: rgba(28,28,30,0.95); backdrop-filter: blur(15px); border-top: 1px solid var(--card-border); display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); z-index: 1000; }
         .nav-btn { flex: 1; text-align: center; color: var(--text-muted); font-size: 11px; font-weight: bold; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; }
         .nav-btn.active { color: var(--accent-orange); }
         .nav-icon { font-size: 24px; }
 
         /* INPUTS */
-        input[type="text"] { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid var(--card-border); background: #000; color: white; font-size: 16px; outline: none; margin-bottom: 10px; }
+        input[type="text"] { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid var(--card-border); background: #000; color: white; font-size: 16px; outline: none; margin-bottom: 10px; transition: 0.2s;}
         input[type="text"]:focus { border-color: var(--accent-orange); }
         .btn-main { width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; background: var(--accent-purple); color: white; cursor: pointer; text-align: center; margin-bottom: 10px; transition: 0.2s;}
         .btn-main:active { opacity: 0.7; }
         
-        /* CARD */
-        .movie-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 10px; display: flex; gap: 15px; margin-bottom: 10px; }
-        .poster { width: 80px; height: 120px; border-radius: 6px; object-fit: cover; background: #333; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #666; text-align: center;}
-        .card-content { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-        .title { font-size: 16px; font-weight: bold; margin: 0 0 5px 0; }
-        .info { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+        /* VERTICAL CARD UI */
+        .movie-card-vert { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .poster-vert { width: 140px; height: 210px; border-radius: 8px; object-fit: cover; background: #333; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.8); }
+        .title-vert { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
+        .info-vert { font-size: 14px; color: var(--text-muted); line-height: 1.4; }
 
         /* DROPDOWN */
         .dropdown { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--card-border); margin-top: -5px; margin-bottom: 15px; overflow: hidden; display: none; }
         .sugg { padding: 15px; border-bottom: 1px solid var(--card-border); font-size: 15px; }
         .sugg:last-child { border-bottom: none; }
+
+        /* TOAST MESSAGES (Replaces Alerts) */
+        #toast-msg { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--accent-red); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 14px; z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.3s, bottom 0.3s; white-space: nowrap; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        #toast-msg.show { opacity: 1; bottom: 100px; }
 
         /* OFFLINE WIDGET */
         #offline-warning { background: var(--accent-red); color: white; text-align: center; padding: 5px; font-size: 12px; font-weight: bold; display: none; }
@@ -56,18 +59,26 @@
 
     <div id="offline-warning">✈️ Offline Mode Active</div>
 
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast-msg">Message</div>
+
     <!-- TURBO MODE -->
     <div id="view-turbo" class="view-page active">
-        <div style="display:flex; justify-content:space-between; margin-bottom: 15px; background:var(--card-bg); padding:10px 15px; border-radius:12px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom: 15px; background:var(--card-bg); padding:10px 15px; border-radius:12px; font-size: 14px;">
             <div style="font-weight:bold; color:var(--text-muted);">Streak: <span id="ui-streak" style="color:var(--accent-orange);">0</span></div>
-            <div style="font-weight:bold; color:var(--text-muted);">Best: <span id="ui-best" style="color:var(--accent-purple);">0</span></div>
+            <div style="font-weight:bold; color:var(--text-muted);">Burnt: <span id="ui-cleared" style="color:var(--accent-green);">0 / 0</span></div>
         </div>
 
-        <div id="turbo-area" style="text-align: center;">
-            <div style="color:var(--text-muted); margin-bottom:10px;">Computer Plays:</div>
-            <div id="turbo-card"></div>
-            <div id="turbo-stats" style="margin-top: 10px; font-size: 13px; font-weight: bold;"></div>
+        <div id="turbo-area">
+            <div style="color:var(--text-muted); margin-bottom:10px; text-align: center; font-weight:bold;">Computer Plays:</div>
             
+            <div id="turbo-card"></div>
+            
+            <div id="turbo-stats" style="text-align:center; font-size: 13px; font-weight: bold;"></div>
+            
+            <!-- Used Targets Display -->
+            <div id="turbo-used" style="text-align:center; font-size: 12px; color:#666; margin-top:8px; line-height:1.4;"></div>
+
             <input type="text" id="turbo-input" placeholder="Search your lists to connect..." oninput="handleSearch()" autocomplete="off" style="margin-top:20px;">
             <div id="turbo-dropdown" class="dropdown"></div>
 
@@ -75,7 +86,7 @@
                 <button class="btn-main" style="background:#333;" onclick="useHint()">Hint</button>
                 <button class="btn-main" style="background:rgba(255,69,58,0.2); color:var(--accent-red);" onclick="gameOver('Gave Up')">Give Up</button>
             </div>
-            <div id="hint-box" style="margin-top:10px; font-size:18px; letter-spacing:3px; display:none; background:#333; padding:10px; border-radius:8px;"></div>
+            <div id="hint-box" style="margin-top:10px; font-size:18px; letter-spacing:3px; display:none; background:#333; padding:10px; border-radius:8px; text-align: center; font-weight:bold;"></div>
         </div>
     </div>
 
@@ -123,11 +134,15 @@
         // --- 2. STATE ---
         let lewdDb = JSON.parse(localStorage.getItem('lewdList_v2')) || {};
         let greenDb = JSON.parse(localStorage.getItem('greenList_v2')) || {};
+        
         let streak = parseInt(localStorage.getItem('mobile_streak')) || 0;
         let best = parseInt(localStorage.getItem('mobile_best')) || 0;
         
+        // "Turbo X" Logic: Burned globally for the run
+        let globalUsedTargets = JSON.parse(localStorage.getItem('mobile_used_targets')) || []; 
+        let totalDatabasePlayable = 0; 
+        
         let currentPrompt = null;
-        let usedIds = [];
         let activeHint = null;
 
         // --- 3. UI LOGIC ---
@@ -144,12 +159,19 @@
             document.getElementById('stat-pop').innerText = Object.keys(greenDb).length;
         }
 
+        function showToast(msg, color = 'var(--accent-red)') {
+            const toast = document.getElementById('toast-msg');
+            toast.innerText = msg;
+            toast.style.background = color;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
         // --- 4. CLOUD SYNC & IMAGE DOWNLOADER ---
         async function syncFromCloud() {
             const statusEl = document.getElementById('sync-status');
             try {
                 statusEl.innerText = "Fetching database.json from cloud...";
-                // Append a timestamp to bypass browser cache and force a fresh download
                 const res = await fetch('./database.json?t=' + new Date().getTime()); 
                 if (!res.ok) throw new Error("Could not find database.json");
                 
@@ -157,7 +179,6 @@
                 lewdDb = data.version === 2 ? data.list : data;
                 greenDb = data.green || {};
                 
-                // Save to iPhone memory
                 localStorage.setItem('lewdList_v2', JSON.stringify(lewdDb));
                 localStorage.setItem('greenList_v2', JSON.stringify(greenDb));
                 updateStatsUI();
@@ -182,37 +203,68 @@
                 return; 
             }
 
+            // ONLY FETCH MISSING IMAGES
+            let missing = [];
+            if ('caches' in window) {
+                const cache = await caches.open('c2n-image-cache-v1');
+                for (let url of posters) {
+                    const matched = await cache.match(url);
+                    if (!matched) missing.push(url);
+                }
+            } else {
+                missing = posters;
+            }
+
+            if(missing.length === 0) {
+                statusEl.innerText = "✅ All images already cached for offline!";
+                if(!currentPrompt) startTurbo();
+                setTimeout(() => statusEl.innerText = '', 3000);
+                return;
+            }
+
             let count = 0;
-            for (let url of posters) {
+            for (let url of missing) {
                 try {
-                    await fetch(url, { mode: 'no-cors' }); // Forces Service Worker to save the image
+                    await fetch(url, { mode: 'no-cors' }); // Saves to SW cache
                     count++;
-                    if(count % 5 === 0) statusEl.innerText = `Caching Images: ${count} / ${posters.length}`;
+                    if(count % 5 === 0) statusEl.innerText = `Caching New Images: ${count} / ${missing.length}`;
                 } catch(e) {}
             }
-            statusEl.innerText = "✅ All Data & Images Ready for Offline Play!";
+            statusEl.innerText = "✅ Database & New Images Ready for Offline!";
             setTimeout(() => statusEl.innerText = '', 5000);
             if(!currentPrompt) startTurbo();
         }
 
         // --- 5. TURBO LOGIC ---
         function getTargets(promptMovie) {
-            let lewd = []; let green = [];
+            let lewd = []; let green = []; let used = [];
             let all = Object.values({...lewdDb, ...greenDb});
+            
             all.forEach(m => {
-                if (m.id == promptMovie.id || m.enabled === false || usedIds.includes(String(m.id))) return;
+                if (m.id == promptMovie.id || m.enabled === false) return;
                 let overlap = m.allPeople.some(p => promptMovie.allPeople.includes(p));
                 if (overlap) {
-                    if (lewdDb[m.id]) lewd.push(m);
-                    else green.push(m);
+                    if (globalUsedTargets.includes(String(m.id))) {
+                        used.push(m);
+                    } else {
+                        if (lewdDb[m.id]) lewd.push(m);
+                        else green.push(m);
+                    }
                 }
             });
-            return { lewd, green };
+            return { lewd, green, used };
+        }
+
+        function calculateDatabaseTotal() {
+            let all = Object.values({...lewdDb, ...greenDb}).filter(m => m.enabled !== false);
+            totalDatabasePlayable = all.length;
         }
 
         function startTurbo() {
-            usedIds = [];
+            globalUsedTargets = [];
             streak = 0;
+            saveState();
+            calculateDatabaseTotal();
             updateScore();
             nextPrompt();
         }
@@ -221,6 +273,7 @@
             activeHint = null;
             document.getElementById('hint-box').style.display = 'none';
             document.getElementById('turbo-input').value = '';
+            document.getElementById('turbo-input').disabled = false;
 
             let all = Object.values({...lewdDb, ...greenDb}).filter(m => m.enabled !== false);
             let valid = all.filter(m => {
@@ -229,44 +282,67 @@
             });
 
             if (valid.length === 0) {
-                document.getElementById('turbo-area').innerHTML = `<div style="margin-top:40px;">No connected movies found. Go to Settings and Sync Database!</div>`;
+                document.getElementById('turbo-area').innerHTML = `<div style="margin-top:40px; font-size:18px;">🎉 Perfect Run! You cleared the entire database!</div><button class="btn-main" onclick="startTurbo()" style="margin-top:20px;">Restart Run</button>`;
                 return;
             }
 
             currentPrompt = valid[Math.floor(Math.random() * valid.length)];
             let targets = getTargets(currentPrompt);
 
+            // Vertical Card Rendering
             document.getElementById('turbo-card').innerHTML = `
-                <div class="movie-card">
-                    <img class="poster" src="${currentPrompt.poster}" alt="Poster" onerror="this.style.display='none'">
-                    <div class="card-content">
-                        <div class="title">${currentPrompt.title}</div>
-                        <div class="info">${currentPrompt.year}</div>
-                        <div class="info">${currentPrompt.dir}</div>
-                    </div>
+                <div class="movie-card-vert">
+                    <img class="poster-vert" src="${currentPrompt.poster}" alt="Poster" onerror="this.style.display='none'">
+                    <div class="title-vert">${currentPrompt.title}</div>
+                    <div class="info-vert">${currentPrompt.year} • ${currentPrompt.dir}</div>
                 </div>`;
             
             document.getElementById('turbo-stats').innerHTML = `<span style="color:var(--accent-purple)">Lewd Targets: ${targets.lewd.length}</span> &nbsp;|&nbsp; <span style="color:var(--accent-green)">Pop Targets: ${targets.green.length}</span>`;
-            document.getElementById('turbo-input').disabled = false;
+            
+            // Display already burnt targets specific to this prompt
+            let usedHtml = '';
+            if (targets.used.length > 0) {
+                let burntTitles = targets.used.map(m => m.title).join(' • ');
+                usedHtml = `<strong>Crossed Out for this prompt:</strong><br>${burntTitles}`;
+            }
+            document.getElementById('turbo-used').innerHTML = usedHtml;
+
+            document.getElementById('turbo-input').focus();
         }
 
         function handleSearch() {
-            let query = document.getElementById('turbo-input').value.toLowerCase();
+            let query = document.getElementById('turbo-input').value.trim();
             let dd = document.getElementById('turbo-dropdown');
             dd.innerHTML = '';
             if(query.length < 2) { dd.style.display = 'none'; return; }
 
-            // Only search local database
             let all = Object.values({...lewdDb, ...greenDb});
-            let results = all.filter(m => m.title.toLowerCase().includes(query) && m.enabled !== false);
+            let qLower = query.toLowerCase();
+            
+            let results = all.filter(m => m.title.toLowerCase().includes(qLower) && m.enabled !== false);
 
             if(results.length > 0) {
-                results.slice(0,5).forEach(m => {
+                // Advanced Desktop Sorting
+                results.sort((a,b) => {
+                    let aStarts = a.title.toLowerCase().startsWith(qLower) ? -1 : 1;
+                    let bStarts = b.title.toLowerCase().startsWith(qLower) ? -1 : 1;
+                    if (aStarts !== bStarts) return aStarts - bStarts;
+                    return a.title.length - b.title.length;
+                });
+
+                results.slice(0,6).forEach(m => {
                     let div = document.createElement('div');
                     div.className = 'sugg';
-                    let star = lewdDb[m.id] ? `<span style="color:var(--accent-purple)">★</span>` : `<span style="color:var(--accent-green)">★</span>`;
-                    div.innerHTML = `${m.title} ${star} <span style="color:#666; font-size:12px;">(${m.year})</span>`;
-                    div.onclick = () => submitGuess(m);
+                    
+                    if (globalUsedTargets.includes(String(m.id))) {
+                        div.style.opacity = '0.4';
+                        div.innerHTML = `<span style="text-decoration:line-through;">${m.title}</span> <span style="color:#666; font-size:12px;">(Burnt)</span>`;
+                        div.onclick = () => showToast("Target is already burnt globally!");
+                    } else {
+                        let star = lewdDb[m.id] ? `<span style="color:var(--accent-purple)">★</span>` : `<span style="color:var(--accent-green)">★</span>`;
+                        div.innerHTML = `${m.title} ${star} <span style="color:#666; font-size:12px;">(${m.year})</span>`;
+                        div.onclick = () => submitGuess(m);
+                    }
                     dd.appendChild(div);
                 });
                 dd.style.display = 'block';
@@ -277,27 +353,42 @@
 
         function submitGuess(movie) {
             document.getElementById('turbo-dropdown').style.display = 'none';
-            if (movie.id === currentPrompt.id || usedIds.includes(String(movie.id))) {
-                alert("Already used or same movie!"); return;
-            }
+            if (movie.id === currentPrompt.id) { showToast("Cannot play the prompt movie back!"); return; }
+            if (globalUsedTargets.includes(String(movie.id))) { showToast("Target already burnt!"); return; }
 
             let overlap = movie.allPeople.filter(p => currentPrompt.allPeople.includes(p));
             if (overlap.length > 0) {
-                // Correct!
-                usedIds.push(String(movie.id));
+                // Correct! Burn the target globally
+                globalUsedTargets.push(String(movie.id));
                 streak++;
-                if(streak > best) { best = streak; localStorage.setItem('mobile_best', best); }
-                localStorage.setItem('mobile_streak', streak);
+                if(streak > best) best = streak;
+                
+                saveState();
                 updateScore();
                 
-                document.getElementById('turbo-card').innerHTML = `
-                    <div style="background:rgba(50,215,75,0.2); padding:15px; border-radius:12px; margin-bottom:10px; color:var(--accent-green); font-weight:bold;">
-                        Correct! via ${overlap[0]}
-                    </div>`;
                 document.getElementById('turbo-input').disabled = true;
-                setTimeout(nextPrompt, 1500);
+
+                // Visual Memory Success Layout
+                document.getElementById('turbo-card').innerHTML = `
+                    <div style="background:rgba(50,215,75,0.15); border: 1px solid var(--accent-green); padding:20px; border-radius:12px; margin-bottom:10px;">
+                        <h3 style="margin-top:0; color:var(--accent-green); text-align:center;">Correct!</h3>
+                        <div style="display:flex; justify-content:center; align-items:center; gap: 15px;">
+                            <img src="${currentPrompt.poster}" style="width:90px; height:135px; border-radius:8px; object-fit:cover;">
+                            <div style="text-align:center; color:var(--text-muted); font-size:12px; font-weight:bold;">
+                                ➡️<br><span style="color:var(--text-main); font-size:14px;">${overlap[0]}</span><br>➡️
+                            </div>
+                            <img src="${movie.poster}" style="width:90px; height:135px; border-radius:8px; object-fit:cover;">
+                        </div>
+                    </div>`;
+                
+                document.getElementById('turbo-stats').innerHTML = '';
+                document.getElementById('turbo-used').innerHTML = '';
+                
+                setTimeout(nextPrompt, 1800);
             } else {
-                alert("No connection found.");
+                showToast("No valid connection to the prompt!");
+                let input = document.getElementById('turbo-input');
+                input.value = ''; input.focus();
             }
         }
 
@@ -321,25 +412,41 @@
         }
 
         function gameOver(reason) {
-            streak = 0; localStorage.setItem('mobile_streak', 0); updateScore();
+            streak = 0; saveState(); updateScore();
             let t = getTargets(currentPrompt);
+            
+            let lewdHtml = t.lewd.length > 0 ? `<div style="color:var(--accent-purple); font-size:13px; margin-top:10px;">Lewd Misses:<br>${t.lewd.map(m=>m.title).join(' • ')}</div>` : '';
+            let greenHtml = t.green.length > 0 ? `<div style="color:var(--accent-green); font-size:13px; margin-top:10px;">Pop Misses:<br>${t.green.map(m=>m.title).join(' • ')}</div>` : '';
+
             document.getElementById('turbo-card').innerHTML = `
-                <div style="background:rgba(255,69,58,0.2); padding:20px; border-radius:12px; color:white;">
-                    <h3 style="margin-top:0; color:var(--accent-red)">Run Ended!</h3>
-                    You missed ${t.lewd.length} Lewd and ${t.green.length} Popular targets.
-                    <br><br><button class="btn-main" onclick="startTurbo()">Try Again</button>
+                <div style="background:rgba(255,69,58,0.15); border: 1px solid var(--accent-red); padding:20px; border-radius:12px; color:white;">
+                    <h3 style="margin-top:0; color:var(--accent-red); text-align:center;">Run Ended!</h3>
+                    <div style="text-align:center; font-size:14px; margin-bottom:10px;">You missed opportunities for:</div>
+                    ${lewdHtml}
+                    ${greenHtml}
+                    <br><button class="btn-main" onclick="startTurbo()" style="background:var(--accent-orange); margin-bottom:0;">Start Fresh Run</button>
                 </div>`;
+            document.getElementById('turbo-stats').innerHTML = '';
+            document.getElementById('turbo-used').innerHTML = '';
             document.getElementById('turbo-input').disabled = true;
         }
 
         function updateScore() {
             document.getElementById('ui-streak').innerText = streak;
             document.getElementById('ui-best').innerText = best;
+            document.getElementById('ui-cleared').innerText = `${globalUsedTargets.length} / ${totalDatabasePlayable}`;
+        }
+
+        function saveState() {
+            localStorage.setItem('mobile_streak', streak);
+            localStorage.setItem('mobile_best', best);
+            localStorage.setItem('mobile_used_targets', JSON.stringify(globalUsedTargets));
         }
 
         // Init
-        updateStatsUI();
-        if (Object.keys(lewdDb).length > 0) startTurbo();
+        calculateDatabaseTotal();
+        updateScore();
+        if (Object.keys(lewdDb).length > 0 && !currentPrompt) startTurbo();
     </script>
 </body>
 </html>
